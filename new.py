@@ -5,6 +5,8 @@ from flask_sqlalchemy import SQLAlchemy
 from youtube import printWAV
 import time, random, threading
 from turbo_flask import Turbo
+from flask_bcrypt import Bcrypt
+
 
 
 
@@ -17,12 +19,13 @@ db = SQLAlchemy(app)
 interval=10
 FILE_NAME = "TaylorSwift.wav"
 turbo = Turbo(app)
+bcrypt = Bcrypt(app)
 
 
 class User(db.Model):
   id = db.Column(db.Integer, primary_key=True)
   username = db.Column(db.String(20), unique=True, nullable=False)
-  email = db.Column(db.String(120), unique=True, nullable=False)
+  email = db.Column(db.String(120), unique=False, nullable=False)
   password = db.Column(db.String(60), nullable=False)
 
   def __repr__(self):
@@ -35,17 +38,20 @@ def home():
 
 @app.route("/new")
 def new():
-  return render_template('new.html', subtitle='Second Page', text = 'This is our second page')
+    return render_template('new.html', subtitle='Second Page', text = 'This is our second page')
 
 @app.route("/register", methods=['GET', 'POST'])
 def register():
     form = RegistrationForm()
     if form.validate_on_submit(): # checks if entries are valid
-      user = User(username=form.username.data, email=form.email.data, password=form.password.data)
-      db.session.add(user)
-      db.session.commit()
-      flash(f'Account created for {form.username.data}!', 'success')
-      return redirect(url_for('home')) # if so - send to home page
+      encrypted = bcrypt.generate_password_hash(form.password.data)
+      print(encrypted)
+      if bcrypt.check_password_hash(encrypted, form.password.data):
+        user = User(username=form.username.data, email=form.email.data, password=encrypted)
+        db.session.add(user)
+        db.session.commit()
+        flash(f'Account created for {form.username.data}!', 'success')
+        return redirect(url_for('home')) # if so - send to home page
     
     return render_template('register.html', title='Register', form=form)
 
