@@ -6,6 +6,7 @@ from youtube import printWAV
 import time, random, threading
 from turbo_flask import Turbo
 from flask_bcrypt import Bcrypt
+from sqlalchemy import exc
 
 
 
@@ -45,13 +46,17 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit(): # checks if entries are valid
       encrypted = bcrypt.generate_password_hash(form.password.data)
-      print(encrypted)
+      #print(encrypted)
       if bcrypt.check_password_hash(encrypted, form.password.data):
         user = User(username=form.username.data, email=form.email.data, password=encrypted)
         db.session.add(user)
-        db.session.commit()
-        flash(f'Account created for {form.username.data}!', 'success')
-        return redirect(url_for('home')) # if so - send to home page
+        try:
+          db.session.commit()
+        except (exc.IntegrityError, exc.OperationalError):
+          print("Username already in use.")
+        else:
+          flash(f'Account created for {form.username.data}!', 'success')
+          return redirect(url_for('home')) # if so - send to home page
     
     return render_template('register.html', title='Register', form=form)
 
